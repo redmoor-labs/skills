@@ -40,7 +40,7 @@ const PANE = {
 // The engine beneath the plugin: what it writes and submits is kept for the assertions.
 function engine(on: On, { failCwd = false, hub = '' } = {}) {
   const seen = { writes: [] as string[], submitted: [] as string[], logs: [] as string[] }
-  mock.env(on, hub ? { HOME: '/home/t', DECISION_QUEUE_HUB: hub } : { HOME: '/home/t' })
+  mock.env(on, hub ? { HOME: '/home/t', REDMOOR_DECISIONQ_HUB_URL: hub } : { HOME: '/home/t' })
   on('tool.register', (_, e) => ({ value: { tool: `mcp__decision-queue__${e.name}` } }))
   on('command.register', () => ({ value: { command: 'decisions' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -330,7 +330,7 @@ function hubServer(on: On, { down = false } = {}) {
 }
 
 describe('the hub', () => {
-  test('with no DECISION_QUEUE_HUB, filing a decision makes no request', async ($, on) => {
+  test('with no REDMOOR_DECISIONQ_HUB_URL, filing a decision makes no request', async ($, on) => {
     engine(on)
     const { calls } = hubServer(on)
     mock.clock(on)

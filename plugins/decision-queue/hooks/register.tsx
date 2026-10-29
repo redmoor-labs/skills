@@ -106,7 +106,7 @@ async function reviseFrom($: EngineInterface, from: From, d: Decision, words: st
   return true
 }
 
-// The hub, when DECISION_QUEUE_HUB names one: each change to the log is sent there, and answers given there
+// The hub, when REDMOOR_DECISIONQ_HUB_URL names one: each change to the log is sent there, and answers given there
 // are fetched from its inbox. A hub that is down never stops a tool; the log on disk stays the record.
 const POLL_MS = 5000
 let hub = ''
@@ -203,7 +203,7 @@ export const register: Register = on => {
     }
     const { open } = counts(fold(await read($, events)))
     if (open) $.ui.status(`decisions: ${open} open`)
-    hub = ((await $.env.get('DECISION_QUEUE_HUB')) ?? '').replace(/\/+$/, '')
+    hub = ((await $.env.get('REDMOOR_DECISIONQ_HUB_URL')) ?? '').replace(/\/+$/, '')
     void push($, await read($, events))
     return started
   })

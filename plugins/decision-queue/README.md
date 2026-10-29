@@ -42,7 +42,7 @@ One JSON-lines file per session: `~/.claude/decision-queue/<session-id>.jsonl`, 
 
 ## Sending decisions to a hub
 
-Set `DECISION_QUEUE_HUB` to a hub's base URL, for example in the `env` block of `~/.claude/settings.json`. Every session then sends its decisions to the hub and takes answers from it, so you can answer the decisions of every session from one page. Leave it unset and nothing leaves the machine.
+Set `REDMOOR_DECISIONQ_HUB_URL` to a hub's base URL, for example in the `env` block of `~/.claude/settings.json`. Every session then sends its decisions to the hub and takes answers from it, so you can answer the decisions of every session from one page. Leave it unset and nothing leaves the machine.
 
 The log on disk stays the record. A session that has filed nothing makes no requests. A hub that is down never stops a tool: the mod logs it once and catches up when the hub is back.
 
