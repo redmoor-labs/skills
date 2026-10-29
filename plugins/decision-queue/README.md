@@ -40,6 +40,22 @@ One JSON-lines file per session: `~/.claude/decision-queue/<session-id>.jsonl`, 
 
 **Conditions.** Written against Claude Code 2.1.306's mod API, which is early access and may change between releases. The pane draws in the terminal and in the Claude desktop app's own Code sessions, but not when you drive a session through Remote Control: answer decisions in the chat there instead. On mobile it says to answer elsewhere. The log is keyed by session id. A resumed session finds its log only if Claude Code resumes it under the same id, which has not been verified.
 
+## Sending decisions to a hub
+
+Set `DECISION_QUEUE_HUB` to a hub's base URL, for example in the `env` block of `~/.claude/settings.json`. Every session then sends its decisions to the hub and takes answers from it, so you can answer the decisions of every session from one page. Leave it unset and nothing leaves the machine.
+
+The log on disk stays the record. A session that has filed nothing makes no requests. A hub that is down never stops a tool: the mod logs it once and catches up when the hub is back.
+
+The protocol is three calls, all JSON, with `{session}` being the Claude Code session id:
+
+| Call | When | Body |
+|---|---|---|
+| `PUT {hub}/v1/sessions/{session}` | every change to the log | `{ where: { cwd, branch?, head? }, events: [...] }`: the whole event log, the same events as the file on disk |
+| `GET {hub}/v1/sessions/{session}/inbox` | every 5 seconds, once the session has filed something | the reply: `{ items: [{ seq, id, action, choice?, text? }] }`, where `action` is `answer`, `withdraw` or `revise` (`revise` needs `text`) |
+| `POST {hub}/v1/sessions/{session}/inbox/ack` | after applying the inbox | `{ upTo: seq }`: the hub drops those items |
+
+The mod applies an inbox item just as it applies the same action in the pane, recorded as `by: "hub"`. An item for a decision that is no longer open is skipped: the first answer recorded wins, and the next `PUT` shows the hub that the decision is closed.
+
 ## Install
 
 ```

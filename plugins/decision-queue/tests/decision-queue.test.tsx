@@ -38,9 +38,9 @@ const PANE = {
 } as const
 
 // The engine beneath the plugin: what it writes and submits is kept for the assertions.
-function engine(on: On, { failCwd = false } = {}) {
-  const seen = { writes: [] as string[], submitted: [] as string[] }
-  mock.env(on, { HOME: '/home/t' })
+function engine(on: On, { failCwd = false, hub = '' } = {}) {
+  const seen = { writes: [] as string[], submitted: [] as string[], logs: [] as string[] }
+  mock.env(on, hub ? { HOME: '/home/t', DECISION_QUEUE_HUB: hub } : { HOME: '/home/t' })
   on('tool.register', (_, e) => ({ value: { tool: `mcp__decision-queue__${e.name}` } }))
   on('command.register', () => ({ value: { command: 'decisions' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -52,7 +52,11 @@ function engine(on: On, { failCwd = false } = {}) {
   })
   on('process.run', () => ({ value: { exitCode: 0, stdout: 'main\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.read', () => ({ value: '' }))
-  for (const call of ['ui.status', 'ui.toast', 'ui.log'] as const) on(call, () => ({ value: undefined }))
+  for (const call of ['ui.status', 'ui.toast'] as const) on(call, () => ({ value: undefined }))
+  on('ui.log', (_, e) => {
+    seen.logs.push(e.text)
+    return { value: undefined }
+  })
   on('ui.notify', () => ({ value: { isSent: true, channel: 'terminal_bell' } }))
   on('fs.write', (_, e) => {
     seen.writes.push(e.text)
@@ -307,5 +311,83 @@ describe('the desktop pane', () => {
     await ui.press({ key: 'opt-A' })
     expect(JSON.parse(lastLog(seen.writes).at(-1) as string)).toMatchObject({ type: 'answer', by: 'panel', choice: 'A' })
     await ui.unmount()
+  })
+})
+
+// A hub in memory: what the mod sends it, and an inbox the test fills.
+function hubServer(on: On, { down = false } = {}) {
+  const calls: { method: string; url: string; body?: unknown }[] = []
+  let inbox: unknown[] = []
+  on('http.fetch', (_, e) => {
+    const method = e.init?.method ?? 'GET'
+    calls.push({ method, url: e.url, body: e.init?.body ? JSON.parse(e.init.body) : undefined })
+    if (down) throw new Error('connection refused')
+    const text = method === 'GET' ? JSON.stringify({ items: inbox }) : ''
+    if (e.url.endsWith('/inbox/ack')) inbox = []
+    return { value: { status: 200, ok: true, headers: {}, text } }
+  })
+  return { calls, fill: (items: unknown[]) => { inbox = items } }
+}
+
+describe('the hub', () => {
+  test('with no DECISION_QUEUE_HUB, filing a decision makes no request', async ($, on) => {
+    engine(on)
+    const { calls } = hubServer(on)
+    mock.clock(on)
+    await start($)
+    await $.tool.call({ tool: ASK, ...DECISION } as never)
+    expect(calls.length).toBe(0)
+  })
+
+  test('a filed decision is sent to the hub with the whole log, under the session id', async ($, on) => {
+    engine(on, { hub: 'http://hub.test/' })
+    const { calls } = hubServer(on)
+    const clock = mock.clock(on)
+    await start($)
+    await $.tool.call({ tool: ASK, ...DECISION } as never)
+    await clock.advance(0)
+    const put = calls.find(c => c.method === 'PUT')
+    expect(put?.url).toBe('http://hub.test/v1/sessions/sess-1')
+    expect(put?.body).toMatchObject({ where: { cwd: '/repo', branch: 'main' }, events: [{ type: 'ask', id: 'D1' }] })
+  })
+
+  test('an answer in the hub\'s inbox is recorded as the hub\'s, told to the agent, and acknowledged', async ($, on) => {
+    const { seen } = engine(on, { hub: 'http://hub.test' })
+    const hub = hubServer(on)
+    const clock = mock.clock(on)
+    await start($)
+    await $.tool.call({ tool: ASK, ...DECISION } as never)
+    hub.fill([{ seq: 7, id: 'D1', action: 'answer', choice: 'B', text: 'per worktree' }])
+    await clock.advance(5000)
+    expect(JSON.parse(lastLog(seen.writes).at(-1) as string)).toMatchObject({ type: 'answer', by: 'hub', choice: 'B' })
+    expect(seen.submitted.at(-1)).toContain('answered on the decision hub: B (One log per worktree) — per worktree')
+    expect(hub.calls.find(c => c.url.endsWith('/inbox/ack'))?.body).toEqual({ upTo: 7 })
+    expect(hub.calls.filter(c => c.method === 'PUT').at(-1)?.body).toMatchObject({ events: [{ type: 'ask' }, { type: 'answer', by: 'hub' }] })
+  })
+
+  test('an inbox answer to a decision already answered in the chat is skipped, and still acknowledged', async ($, on) => {
+    const { seen } = engine(on, { hub: 'http://hub.test' })
+    const hub = hubServer(on)
+    const clock = mock.clock(on)
+    await start($)
+    await $.tool.call({ tool: ASK, ...DECISION } as never)
+    await $.tool.call({ tool: RESOLVE, id: 'D1', outcome: 'answered', choice: 'A', text: '1A' } as never)
+    hub.fill([{ seq: 1, id: 'D1', action: 'answer', choice: 'B' }])
+    await clock.advance(5000)
+    expect(seen.submitted.length).toBe(0)
+    expect(fold(lastLog(seen.writes).map(l => JSON.parse(l)))[0]?.answer?.choice).toBe('A')
+    expect(hub.calls.some(c => c.url.endsWith('/inbox/ack'))).toBe(true)
+  })
+
+  test('a hub that is down does not stop a decision being filed, and is logged once', async ($, on) => {
+    const { seen } = engine(on, { hub: 'http://hub.test' })
+    hubServer(on, { down: true })
+    const clock = mock.clock(on)
+    await start($)
+    const r = await $.tool.call({ tool: ASK, ...DECISION } as never)
+    await clock.advance(15000)
+    expect(said(r)).toContain('Filed D1')
+    expect(seen.writes.length).toBe(1)
+    expect(seen.logs.filter(l => l.includes('could not reach the hub')).length).toBe(1)
   })
 })

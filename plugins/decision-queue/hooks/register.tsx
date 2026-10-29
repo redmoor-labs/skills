@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, HookFailure, Register } from 'claude-code'
 
-import type { Event, Fields, FilterBy, GroupBy, SortBy, View, Where } from '../types'
+import type { Event, Fields, FilterBy, GroupBy, InboxItem, SortBy, View, Where } from '../types'
 import {
   counts,
   fold,
@@ -48,6 +48,7 @@ async function record($: EngineInterface, event: Event): Promise<Decision[]> {
   if (path) await $.fs.write(path, toJsonl(all)).catch(() => $.ui.log(`${PLUGIN}: could not write ${path}`))
   const { open, now: urgent } = counts(fold(all))
   $.ui.status(open ? `decisions: ${open} open${urgent ? `, ${urgent} blocking now` : ''}` : undefined)
+  void push($, all)
   return fold(all)
 }
 
@@ -75,6 +76,84 @@ async function deliver($: EngineInterface, text: string): Promise<void> {
   }
 }
 
+// The panel's three actions, which the hub's inbox takes too. Each records the event and tells the agent.
+type From = 'panel' | 'hub'
+const PLACE = { panel: 'in the decision panel', hub: 'on the decision hub' } as const
+
+async function answerFrom($: EngineInterface, from: From, d: Decision, choice: string | undefined, words: string): Promise<boolean> {
+  const text = words.trim()
+  if (!choice && !text) return false
+  await record($, { type: 'answer', id: d.id, at: now(), by: from, choice, text: text || `Option ${choice}` })
+  const picked = choice ? `${choice} (${d.options.find(o => o.letter === choice)?.label ?? ''})` : ''
+  await deliver($, `Decision ${d.id} (“${d.title}”) answered ${PLACE[from]}: ` +
+    `${[picked, text].filter(Boolean).join(' — ')}. It is recorded; act on it.`)
+  return true
+}
+
+async function withdrawFrom($: EngineInterface, from: From, d: Decision, words: string): Promise<void> {
+  const why = words.trim()
+  await record($, { type: 'withdraw', id: d.id, at: now(), by: from, reason: why || 'no reason given' })
+  await deliver($, `The user marked decision ${d.id} (“${d.title}”) ${PLACE[from]} as not needed` +
+    `${why ? `: ${why}` : ''}. It is closed; do not act on it.`)
+}
+
+async function reviseFrom($: EngineInterface, from: From, d: Decision, words: string): Promise<boolean> {
+  const text = words.trim()
+  if (!text) return false
+  await record($, { type: 'revision-asked', id: d.id, at: now(), text })
+  await deliver($, `The user asks ${PLACE[from]} that you revise decision ${d.id} (“${d.title}”): ${text}. ` +
+    'Rewrite it with decision_update and reprint it.')
+  return true
+}
+
+// The hub, when DECISION_QUEUE_HUB names one: each change to the log is sent there, and answers given there
+// are fetched from its inbox. A hub that is down never stops a tool; the log on disk stays the record.
+const POLL_MS = 5000
+let hub = ''
+let hubIsDown = false
+let polling: { cancel: () => void } | undefined
+
+async function hubCall($: EngineInterface, method: string, path: string, body?: unknown): Promise<string | undefined> {
+  try {
+    const r = await $.http.fetch(`${hub}/v1/sessions/${encodeURIComponent(await $.session.id())}${path}`, {
+      method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    if (hubIsDown) $.ui.log(`${PLUGIN}: the hub at ${hub} is back`)
+    hubIsDown = false
+    return r.text
+  } catch (err) {
+    if (!hubIsDown) $.ui.log(`${PLUGIN}: could not reach the hub at ${hub} (${String(err).slice(0, 120)}); the log on disk stays the record`)
+    hubIsDown = true
+    return undefined
+  }
+}
+
+async function push($: EngineInterface, all: readonly Event[]): Promise<void> {
+  if (!hub || !all.length) return
+  await hubCall($, 'PUT', '', { where: await where($), events: all })
+  if (!polling) polling = $.clock.every(POLL_MS, () => void pull($))
+}
+
+// Applies what the hub's inbox holds, then acknowledges it. A decision already closed here is skipped:
+// the first answer recorded wins, and the next push shows the hub that it is closed.
+async function pull($: EngineInterface): Promise<void> {
+  const text = await hubCall($, 'GET', '/inbox')
+  if (!text) return
+  const items = (JSON.parse(text) as { items?: InboxItem[] }).items ?? []
+  if (!items.length) return
+  for (const item of items) {
+    const d = await find($, item.id)
+    if (!d || d.status !== 'open') continue
+    if (item.action === 'answer') {
+      const choice = item.choice && d.options.some(o => o.letter === item.choice) ? item.choice : undefined
+      await answerFrom($, 'hub', d, choice, item.text ?? '')
+    } else if (item.action === 'withdraw') await withdrawFrom($, 'hub', d, item.text ?? '')
+    else await reviseFrom($, 'hub', d, item.text)
+  }
+  await hubCall($, 'POST', '/inbox/ack', { upTo: Math.max(...items.map(i => i.seq)) })
+}
+
 const TAGS = { now: 'NOW', before: 'before', default: 'default', whenever: 'later' } as const
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s.padEnd(n))
 const KIND_SHORT = { gate: 'gate', 'plan-changing': 'plan', shaping: 'design', minor: 'minor' } as const
@@ -95,7 +174,7 @@ function ago(iso: string, short = false): string {
 const tag = (d: Decision) => (d.status === 'open' ? TAGS[d.needed] : d.status)
 const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const byWhom = (d: Decision) =>
-  ({ panel: 'in the panel', chat: 'in the chat', default: 'by default' })[d.answer?.by ?? 'chat']
+  ({ panel: 'in the panel', hub: 'on the hub', chat: 'in the chat', default: 'by default' })[d.answer?.by ?? 'chat']
 
 function invalid(lines: string[]) {
   return { deny: `Not filed. Fix and call again:\n- ${lines.join('\n- ')}` }
@@ -124,6 +203,8 @@ export const register: Register = on => {
     }
     const { open } = counts(fold(await read($, events)))
     if (open) $.ui.status(`decisions: ${open} open`)
+    hub = ((await $.env.get('DECISION_QUEUE_HUB')) ?? '').replace(/\/+$/, '')
+    void push($, await read($, events))
     return started
   })
 
@@ -246,26 +327,14 @@ export const register: Register = on => {
     const heading = (text: string) => <Text dimColor bold>{text}</Text>
 
     const answer = (d: Decision, choice: string | undefined, words: string) => async () => {
-      const text = words.trim()
-      if (!choice && !text) return
-      await record($, { type: 'answer', id: d.id, at: now(), by: 'panel', choice, text: text || `Option ${choice}` })
-      await clearNote()
-      const picked = choice ? `${choice} (${d.options.find(o => o.letter === choice)?.label ?? ''})` : ''
-      await deliver($, `Decision ${d.id} (“${d.title}”) answered in the decision panel: ` +
-        `${[picked, text].filter(Boolean).join(' — ')}. It is recorded; act on it.`)
+      if (await answerFrom($, 'panel', d, choice, words)) await clearNote()
     }
     const withdraw = (d: Decision) => async () => {
-      await record($, { type: 'withdraw', id: d.id, at: now(), by: 'panel', reason: note.trim() || 'no reason given' })
+      await withdrawFrom($, 'panel', d, note)
       await clearNote()
-      await deliver($, `The user marked decision ${d.id} (“${d.title}”) as not needed` +
-        `${note.trim() ? `: ${note.trim()}` : ''}. It is closed; do not act on it.`)
     }
     const askRevision = (d: Decision) => async () => {
-      if (!note.trim()) return
-      await record($, { type: 'revision-asked', id: d.id, at: now(), text: note.trim() })
-      await clearNote()
-      await deliver($, `The user asks you to revise decision ${d.id} (“${d.title}”): ${note.trim()}. ` +
-        'Rewrite it with decision_update and reprint it.')
+      if (await reviseFrom($, 'panel', d, note)) await clearNote()
     }
 
     const { open: n, now: urgent } = counts(all)
