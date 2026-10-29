@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- The input: a Loans screen as exported from a design tool. One state, sample data, no notes. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shed · Loans</title>
+<style>
+  :root {
+    --green-600: #2f6f4f; --green-50: #e3f1e9;
+    --amber-700: #9a6700; --amber-50: #fff4d6;
+    --red-600: #b42318; --red-50: #fde8e7;
+    --grey-900: #1f2328; --grey-600: #5b636e; --grey-300: #d0d7de; --grey-100: #eef1f4;
+    --font-ui: "Inter", system-ui, sans-serif; --font-num: "JetBrains Mono", ui-monospace, monospace;
+  }
+  body { margin: 0; font: 15px/22px var(--font-ui); color: var(--grey-900); background: #fff; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--grey-300); }
+  header b { font-size: 17px; }
+  header nav a { color: var(--grey-600); text-decoration: none; margin-right: 16px; }
+  header nav a.on { color: var(--grey-900); font-weight: 600; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 24px; line-height: 32px; margin: 0 0 16px; }
+  .chips { display: flex; gap: 8px; margin-bottom: 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--grey-300); border-radius: 999px; background: #fff; font: 500 13px/18px var(--font-ui); }
+  .chip.sel { background: var(--green-50); border-color: var(--green-600); color: var(--green-600); }
+  .chip .n { font: 12px/16px var(--font-num); background: var(--grey-100); padding: 0 6px; border-radius: 999px; }
+  .row { display: grid; grid-template-columns: 1fr 180px 120px 120px; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--grey-300); }
+  .tool { font-weight: 600; } .who { color: var(--grey-600); font-size: 13px; }
+  .date { font: 13px/18px var(--font-num); }
+  .pill { justify-self: start; padding: 2px 10px; border-radius: 999px; font: 600 12px/16px var(--font-ui); }
+  .pill.out { background: var(--green-50); color: var(--green-600); }
+  .pill.due { background: var(--amber-50); color: var(--amber-700); }
+  .pill.late { background: var(--red-50); color: var(--red-600); }
+  .act { justify-self: end; height: 32px; padding: 0 12px; border: 1px solid var(--grey-300); border-radius: 6px; background: #fff; font: 500 13px var(--font-ui); }
+</style>
+</head>
+<body>
+<header><b>Shed</b><nav><a class="on" href="#">Loans</a><a href="#">Tools</a><a href="#">Members</a></nav></header>
+<main>
+  <h1>Loans</h1>
+  <div class="chips">
+    <button class="chip sel">All <span class="n">24</span></button>
+    <button class="chip">Due today <span class="n">3</span></button>
+    <button class="chip">Overdue <span class="n">2</span></button>
+    <button class="chip">Returned this week <span class="n">11</span></button>
+  </div>
+  <div class="row"><div><div class="tool">Cordless drill (18V)</div><div class="who">Priya S. · #0412</div></div><div class="date">Due 31 Oct</div><span class="pill out">On loan</span><button class="act">Mark returned</button></div>
+  <div class="row"><div><div class="tool">Extension ladder, 3.9m</div><div class="who">Tom B. · #0388</div></div><div class="date">Due 29 Oct</div><span class="pill due">Due today</span><button class="act">Mark returned</button></div>
+  <div class="row"><div><div class="tool">Hedge trimmer</div><div class="who">Ada K. · #0101</div></div><div class="date">Due 24 Oct</div><span class="pill late">Overdue</span><button class="act">Mark returned</button></div>
+  <div class="row"><div><div class="tool">Wallpaper steamer</div><div class="who">Sam O. · #0257</div></div><div class="date">Due 2 Nov</div><span class="pill out">On loan</span><button class="act">Mark returned</button></div>
+</main>
+</body>
+</html>

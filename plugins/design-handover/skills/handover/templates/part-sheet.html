@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- One sheet per part. Every state drawn statically, labelled, with the reason on the card.
+     Every specimen carries data-part, data-state and data-breakpoint. -->
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P## · [PartName]</title><link rel="stylesheet" href="../sheet.css"></head>
+<body>
+<h1>P## · [PartName]</h1>
+<p class="lede">Every state, drawn statically. Values: <code>parts/p##-[slug].md</code>.</p>
+<div class="grid">
+  <div class="card"><h2>default</h2>
+    <!-- the specimen -->
+    <span data-part="[slug]" data-state="default" data-breakpoint="1280">[content]</span>
+    <p class="why">[One or two lines: why it looks like this.]</p></div>
+
+  <!-- Repeat for every state in the part file, including hover and focus drawn statically,
+       then edge cases: longest content, empty, zero, failure. Then each real breakpoint. -->
+</div>
+</body></html>

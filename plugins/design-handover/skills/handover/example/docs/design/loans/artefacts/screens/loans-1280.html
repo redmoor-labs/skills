@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loans · 1280 composition</title><link rel="stylesheet" href="../sheet.css">
+<style>.screen{background:#fff;border:1px solid var(--color-line);border-radius:8px;padding:24px;max-width:1040px}.screen h2{font-size:24px;line-height:32px;margin:0 0 16px}.warn{background:var(--color-warn-weak);color:var(--color-warn);padding:8px 12px;border-radius:6px;margin:0 0 16px;font-size:13px}</style></head>
+<body>
+<p class="warn"><b>Composition sheet. Values are not taken from here.</b> Values come from the part files; states from the part sheets. This shows layout, order and density only.</p>
+<div class="screen" data-part="loans-page" data-state="default" data-breakpoint="1280">
+  <h2>Loans</h2>
+  <div class="band" role="radiogroup" style="margin-bottom:16px">
+    <span class="chip" data-part="filter-chip" data-state="selected">All <span class="n">24</span></span>
+    <span class="chip" data-part="filter-chip" data-state="default">Due today <span class="n">3</span></span>
+    <span class="chip" data-part="filter-chip" data-state="default">Overdue <span class="n">2</span></span>
+    <span class="chip" data-part="filter-chip" data-state="default">Returned this week <span class="n">11</span></span>
+  </div>
+  <div class="row" data-part="loan-row" data-state="default"><div><div class="tool">Hedge trimmer</div><div class="who">Ada K. · <span class="num">#0101</span></div></div><div class="date">Due 24 Oct</div><span class="pill" data-part="status-pill" data-state="overdue">Overdue</span><button class="btn">Mark returned</button></div>
+  <div class="row" data-part="loan-row" data-state="default"><div><div class="tool">Extension ladder, 3.9m</div><div class="who">Tom B. · <span class="num">#0388</span></div></div><div class="date">Due 29 Oct</div><span class="pill" data-part="status-pill" data-state="due-today">Due today</span><button class="btn">Mark returned</button></div>
+  <div class="row" data-part="loan-row" data-state="default"><div><div class="tool">Cordless drill (18V)</div><div class="who">Priya S. · <span class="num">#0412</span></div></div><div class="date">Due 31 Oct</div><span class="pill" data-part="status-pill" data-state="on-loan">On loan</span><button class="btn">Mark returned</button></div>
+  <div class="row" data-part="loan-row" data-state="default" data-shape="with-note"><div><div class="tool">Wallpaper steamer</div><div class="who">Sam O. · <span class="num">#0257</span></div><div class="note">Charger missing</div></div><div class="date">Due 2 Nov</div><span class="pill" data-part="status-pill" data-state="on-loan">On loan</span><button class="btn">Mark returned</button></div>
+</div>
+<p class="lede" style="margin-top:12px">Order follows B06: overdue first, then due today, then by due date. The design's order was different; the spec wins.</p>
+</body></html>

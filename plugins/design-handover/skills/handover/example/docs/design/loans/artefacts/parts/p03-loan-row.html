@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P03 · LoanRow</title><link rel="stylesheet" href="../sheet.css"></head>
+<body>
+<h1>P03 · LoanRow</h1>
+<p class="lede">Both content shapes and every row state. Values: <code>parts/p03-loan-row.md</code>.</p>
+<div class="grid">
+  <div class="card wide"><h2>default · standard</h2>
+    <div class="row" data-part="loan-row" data-state="default" data-breakpoint="1280">
+      <div><div class="tool">Cordless drill (18V)</div><div class="who">Priya S. · <span class="num">#0412</span></div></div>
+      <div class="date">Due 31 Oct</div><span class="pill" data-part="status-pill" data-state="on-loan">On loan</span><button class="btn">Mark returned</button></div>
+    <p class="why">The common case. Tool name is a link; the row itself isn't.</p></div>
+
+  <div class="card wide"><h2>default · with note</h2>
+    <div class="row" data-part="loan-row" data-state="default" data-shape="with-note" data-breakpoint="1280">
+      <div><div class="tool">Wallpaper steamer</div><div class="who">Sam O. · <span class="num">#0257</span></div><div class="note">Charger missing</div></div>
+      <div class="date">Due 2 Nov</div><span class="pill" data-part="status-pill" data-state="on-loan">On loan</span><button class="btn">Mark returned</button></div>
+    <p class="why">A content shape, not a variant: the note adds a line but changes no treatment.</p></div>
+
+  <div class="card wide"><h2>hover</h2>
+    <div class="row" data-part="loan-row" data-state="hover" data-breakpoint="1280">
+      <div><div class="tool">Extension ladder, 3.9m</div><div class="who">Tom B. · <span class="num">#0388</span></div></div>
+      <div class="date">Due 29 Oct</div><span class="pill" data-part="status-pill" data-state="due-today">Due today</span><button class="btn">Mark returned</button></div>
+    <p class="why">Weak fill, and the tool name underlines to show it's the link.</p></div>
+
+  <div class="card wide"><h2>returning</h2>
+    <div class="row" data-part="loan-row" data-state="returning" data-breakpoint="1280">
+      <div><div class="tool">Hedge trimmer</div><div class="who">Ada K. · <span class="num">#0101</span></div></div>
+      <div class="date">Due 24 Oct</div><span class="pill" data-part="status-pill" data-state="overdue">Overdue</span><button class="btn" disabled>Returning…</button></div>
+    <p class="why">After confirm, before the server replies. Half opacity so a double-tap can't fire twice.</p></div>
+
+  <div class="card wide"><h2>not-permitted</h2>
+    <div class="row" data-part="loan-row" data-state="not-permitted" data-breakpoint="1280">
+      <div><div class="tool">Cordless drill (18V)</div><div class="who">Priya S. · <span class="num">#0412</span></div></div>
+      <div class="date">Due 31 Oct</div><span class="pill" data-part="status-pill" data-state="on-loan">On loan</span><span></span></div>
+    <p class="why">No "returns" role: the button is hidden, not greyed. Greyed would mean "not now"; this means "not you".</p></div>
+
+  <div class="card wide"><h2>edge · long tool name</h2>
+    <div class="row" data-part="loan-row" data-state="default" data-breakpoint="1280">
+      <div style="min-width:0"><div class="tool" title="Petrol pressure washer with patio cleaner attachment and 10m hose">Petrol pressure washer with patio cleaner attachment and 10m hose</div><div class="who">Jo W. · <span class="num">#0009</span></div></div>
+      <div class="date">Due 30 Oct</div><span class="pill" data-part="status-pill" data-state="on-loan">On loan</span><button class="btn">Mark returned</button></div>
+    <p class="why">One line, ellipsis. Full name in the title attribute and on the detail page.</p></div>
+
+  <div class="card"><h2>default · 375</h2>
+    <div class="narrow"><div class="row" data-part="loan-row" data-state="default" data-breakpoint="375">
+      <div style="grid-column:1/-1"><div class="tool">Extension ladder, 3.9m</div><div class="who">Tom B. · <span class="num">#0388</span></div></div>
+      <div class="meta"><span class="date">Due 29 Oct</span><span class="pill" data-part="status-pill" data-state="due-today">Due today</span></div>
+    </div></div>
+    <p class="why">Stacks. Mark returned is removed and lives on the detail page. Whether that strands phone-only volunteers is open (B08).</p></div>
+</div>
+</body></html>

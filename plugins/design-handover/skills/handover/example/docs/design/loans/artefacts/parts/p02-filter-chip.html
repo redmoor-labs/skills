@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P02 · FilterChip</title><link rel="stylesheet" href="../sheet.css"></head>
+<body>
+<h1>P02 · FilterChip</h1>
+<p class="lede">Every state, drawn statically. Nothing here needs hovering or clicking. Values: <code>parts/p02-filter-chip.md</code>.</p>
+<div class="grid">
+  <div class="card"><h2>default</h2>
+    <span class="chip" data-part="filter-chip" data-state="default" data-breakpoint="1280">Due today <span class="n">3</span></span>
+    <p class="why">Outlined, quiet. The count is mono so numbers line up across chips.</p></div>
+  <div class="card"><h2>hover</h2>
+    <span class="chip" data-part="filter-chip" data-state="hover" data-breakpoint="1280">Due today <span class="n">3</span></span>
+    <p class="why">Weak fill and a darker border. Uses the T01 gap colour.</p></div>
+  <div class="card"><h2>focus</h2>
+    <span class="chip" data-part="filter-chip" data-state="focus" data-breakpoint="1280">Due today <span class="n">3</span></span>
+    <p class="why">Not in the design (F02). Project-standard focus outline, 2px offset.</p></div>
+  <div class="card"><h2>selected</h2>
+    <span class="chip" data-part="filter-chip" data-state="selected" data-breakpoint="1280">All <span class="n">24</span></span>
+    <p class="why">Exactly one chip is always selected (B04). Clicking it again does nothing.</p></div>
+  <div class="card"><h2>selected-focus</h2>
+    <span class="chip" data-part="filter-chip" data-state="selected-focus" data-breakpoint="1280">All <span class="n">24</span></span>
+    <p class="why">The usual keyboard state: arrows move selection and focus together.</p></div>
+  <div class="card"><h2>zero-count</h2>
+    <span class="chip" data-part="filter-chip" data-state="zero-count" data-breakpoint="1280">Overdue <span class="n">0</span></span>
+    <p class="why">Muted but still pressable (B01): pressing it shows the good-news empty state.</p></div>
+  <div class="card"><h2>loading</h2>
+    <span class="chip" data-part="filter-chip" data-state="loading" data-breakpoint="1280">Overdue <span class="n"></span></span>
+    <p class="why">Count placeholder, no spinner. Also the failure state if counts never arrive (B03).</p></div>
+  <div class="card"><h2>edge · long label</h2>
+    <span class="chip" data-part="filter-chip" data-state="default" data-breakpoint="1280">Returned this week <span class="n">128</span></span>
+    <p class="why">Longest real label and a three-digit count. The chip grows; it never truncates.</p></div>
+  <div class="card wide"><h2>band · 375</h2>
+    <div class="narrow"><div class="band scroll" role="radiogroup" data-part="filter-band" data-state="scrolling" data-breakpoint="375">
+      <span class="chip" data-part="filter-chip" data-state="selected" data-breakpoint="375">All <span class="n">24</span></span>
+      <span class="chip" data-part="filter-chip" data-state="default" data-breakpoint="375">Due today <span class="n">3</span></span>
+      <span class="chip" data-part="filter-chip" data-state="default" data-breakpoint="375">Overdue <span class="n">2</span></span>
+      <span class="chip" data-part="filter-chip" data-state="default" data-breakpoint="375">Returned this week <span class="n">11</span></span>
+    </div></div>
+    <p class="why">At 375 the band scrolls sideways. Chips never wrap or shrink.</p></div>
+</div>
+</body></html>

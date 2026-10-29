@@ -1,0 +1,14 @@
+{
+  "name": "redmoor",
+  "owner": {
+    "name": "George Thomas"
+  },
+  "description": "Claude skills from Redmoor Labs",
+  "plugins": [
+    {
+      "name": "design-handover",
+      "source": "./plugins/design-handover",
+      "description": "Turn visual designs into a structured handover a coding agent can build from without guessing"
+    }
+  ]
+}

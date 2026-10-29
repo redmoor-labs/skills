@@ -1,0 +1,55 @@
+/* Shared styles for the part sheets. Project tokens, then the sheet layout, then the parts. */
+:root {
+  --color-ink: #1f2328; --color-muted: #5b636e; --color-line: #d0d7de;
+  --color-surface: #ffffff; --color-surface-weak: #eef1f4; /* T01: gap, proposed */
+  --color-accent: #2f6f4f; --color-accent-weak: #e3f1e9;
+  --color-warn: #9a6700; --color-warn-weak: #fff4d6;
+  --color-danger: #b42318; --color-focus: #2f6f4f;
+  --radius-pill: 999px; --radius-sm: 6px;
+  --font-ui: system-ui, sans-serif; --font-mono: ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 32px; font: 15px/22px var(--font-ui); color: var(--color-ink); background: #f6f7f9; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.lede { color: var(--color-muted); margin: 0 0 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.card { background: #fff; border: 1px solid var(--color-line); border-radius: 8px; padding: 16px; }
+.card h2 { font: 600 12px/16px var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--color-muted); margin: 0 0 12px; }
+.card .why { font-size: 13px; line-height: 18px; color: var(--color-muted); margin: 12px 0 0; }
+.wide { grid-column: 1 / -1; }
+.narrow { max-width: 375px; }
+
+/* P01 StatusPill */
+.pill { display: inline-block; height: 20px; padding: 2px 10px; border-radius: var(--radius-pill); font: 600 12px/16px var(--font-ui); }
+.pill[data-state="on-loan"] { background: var(--color-accent-weak); color: var(--color-accent); }
+.pill[data-state="due-today"] { background: var(--color-warn-weak); color: var(--color-warn); }
+.pill[data-state="overdue"] { background: var(--color-warn-weak); color: var(--color-warn); font-weight: 700; }
+.pill[data-state="returned"] { background: var(--color-surface); color: var(--color-muted); border: 1px solid var(--color-line); padding: 1px 9px; }
+
+/* P02 FilterChip */
+.chip { flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-ink); font: 500 13px/18px var(--font-ui); }
+.chip .n { font: 12px/16px var(--font-mono); font-variant-numeric: tabular-nums; padding: 0 6px; border-radius: var(--radius-pill); background: var(--color-surface-weak); }
+.chip[data-state="hover"] { background: var(--color-surface-weak); border-color: var(--color-muted); }
+.chip[data-state="focus"], .chip[data-state="selected-focus"] { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.chip[data-state="selected"], .chip[data-state="selected-focus"] { background: var(--color-accent-weak); border-color: var(--color-accent); color: var(--color-accent); }
+.chip[data-state="selected"] .n, .chip[data-state="selected-focus"] .n { background: var(--color-surface); color: var(--color-accent); }
+.chip[data-state="zero-count"] { color: var(--color-muted); }
+.chip[data-state="zero-count"] .n { color: var(--color-muted); }
+.chip[data-state="loading"] .n { width: 16px; height: 12px; padding: 0; background: var(--color-line); }
+.band { display: flex; gap: 8px; }
+.band.scroll { overflow-x: auto; padding: 6px 2px; }
+
+/* P03 LoanRow */
+.row { display: grid; grid-template-columns: 1fr 180px 120px 120px; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-line); background: #fff; min-height: 68px; }
+.row .tool { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .who, .row .note { font-size: 13px; line-height: 18px; color: var(--color-muted); }
+.row .note { color: var(--color-warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .num, .row .date { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.row .date { font-size: 13px; line-height: 18px; }
+.row .pill { justify-self: start; }
+.row[data-state="hover"] { background: var(--color-surface-weak); }
+.row[data-state="hover"] .tool { text-decoration: underline; }
+.row[data-state="returning"] { opacity: .5; }
+.btn { justify-self: end; height: 32px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; font: 500 13px var(--font-ui); color: var(--color-ink); }
+.row[data-breakpoint="375"] { grid-template-columns: 1fr auto; row-gap: 6px; }
+.row[data-breakpoint="375"] .meta { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; }

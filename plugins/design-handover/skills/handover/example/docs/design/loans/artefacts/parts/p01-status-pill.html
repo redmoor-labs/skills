@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P01 · StatusPill</title><link rel="stylesheet" href="../sheet.css"></head>
+<body>
+<h1>P01 · StatusPill</h1>
+<p class="lede">Four variants. Not interactive, so no hover or focus. Values: <code>parts/p01-status-pill.md</code>.</p>
+<div class="grid">
+  <div class="card"><h2>on-loan</h2>
+    <span class="pill" data-part="status-pill" data-state="on-loan" data-breakpoint="1280">On loan</span>
+    <p class="why">Green: the normal, healthy state. Most rows look like this.</p></div>
+  <div class="card"><h2>due-today</h2>
+    <span class="pill" data-part="status-pill" data-state="due-today" data-breakpoint="1280">Due today</span>
+    <p class="why">Amber: needs attention today, but nothing's wrong yet.</p></div>
+  <div class="card"><h2>overdue</h2>
+    <span class="pill" data-part="status-pill" data-state="overdue" data-breakpoint="1280">Overdue</span>
+    <p class="why">Amber at weight 700, not red. Red is for system errors only (F01).</p></div>
+  <div class="card"><h2>returned</h2>
+    <span class="pill" data-part="status-pill" data-state="returned" data-breakpoint="1280">Returned</span>
+    <p class="why">Outlined and muted: finished, so it should recede. Only seen under "Returned this week".</p></div>
+</div>
+</body></html>
