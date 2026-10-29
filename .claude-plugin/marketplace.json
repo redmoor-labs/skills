@@ -1,7 +1,8 @@
 {
   "name": "redmoor",
   "owner": {
-    "name": "George Thomas"
+    "name": "Redmoor Labs",
+    "url": "https://redmoor.io"
   },
   "description": "Claude skills from Redmoor Labs",
   "plugins": [
