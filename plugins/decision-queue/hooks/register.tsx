@@ -78,6 +78,10 @@ async function deliver($: EngineInterface, text: string): Promise<void> {
 const TAGS = { now: 'NOW', before: 'before', default: 'default', whenever: 'later' } as const
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s.padEnd(n))
 const KIND_SHORT = { gate: 'gate', 'plan-changing': 'plan', shaping: 'design', minor: 'minor' } as const
+// Desktop only: words for the pills and meta lines, and a theme colour per urgency.
+const KIND_LABEL = { gate: 'Approval', 'plan-changing': 'Could change the plan', shaping: 'Design input', minor: 'Minor' } as const
+const PILL = { now: 'Blocking', before: 'Before a step', default: 'Default', whenever: 'Later' } as const
+const PILL_COLOR = { now: 'error', before: 'warning', default: 'suggestion', whenever: 'inactive' } as const
 function ago(iso: string, short = false): string {
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000))
   const span = mins < 60 ? `${mins}m` : mins < 2880 ? `${Math.round(mins / 60)}h` : `${Math.round(mins / 1440)}d`
@@ -255,6 +259,167 @@ export const register: Register = on => {
 
     const { open: n, now: urgent } = counts(all)
     const current = all.find(d => d.id === pick)
+
+    if (e.surface === 'desktop') {
+      const { Markdown } = $.ui.resolve(e)
+      const pill = (label: string, bg: string) => (
+        <Text size="caption" weight="semibold" color="inverseText" backgroundColor={bg}>{` ${label} `}</Text>
+      )
+      const badge = (d: Decision) => d.status === 'open'
+        ? pill(PILL[d.needed], PILL_COLOR[d.needed])
+        : pill(sentence(d.status), d.status === 'answered' ? 'success' : 'inactive')
+      const section = (text: string) => <Text size="footnote" weight="semibold" color="subtle">{text}</Text>
+      const when = (d: Decision) =>
+        d.status === 'open' && (d.needed === 'before' || d.needed === 'default') && d.when
+          ? `${d.needed === 'before' ? 'Needed before' : 'Final when'}: ${d.when}` : ''
+
+      if (screen === 'detail' && current) {
+        const shown = arrange(all, show, order)
+        const at = shown.findIndex(d => d.id === current.id)
+        const prev = at > 0 ? shown[at - 1] : undefined
+        const next = at >= 0 && at < shown.length - 1 ? shown[at + 1] : undefined
+        const rec = current.recommendation.option
+        const isOpen = current.status === 'open'
+        return (
+          <Box flexDirection="column" gap="md" padding="sm">
+            <Box flexDirection="row" gap="xs" justifyContent="space-between">
+              <Button key="back" variant="secondary" onPress={back}>← All decisions</Button>
+              <Box flexDirection="row" gap="xs">
+                {prev ? <Button key="prev" variant="secondary" onPress={openDetail(prev.id)}>‹ {prev.id}</Button> : null}
+                {next ? <Button key="next" variant="secondary" onPress={openDetail(next.id)}>{next.id} ›</Button> : null}
+              </Box>
+            </Box>
+
+            <Box flexDirection="column" gap="xs">
+              <Box flexDirection="row" gap="xs" alignItems="center">
+                {badge(current)}
+                <Text size="caption" color="subtle">
+                  {current.id} · {KIND_LABEL[current.kind]} · filed {ago(current.createdAt)}
+                  {current.where.branch ? ` · ${current.where.branch}` : ''}
+                  {current.revisions.length ? ` · revised ${current.revisions.length}×` : ''}
+                </Text>
+              </Box>
+              <Text size="title" weight="semibold">{current.title}</Text>
+              {when(current) ? <Text size="footnote" color="subtle">{when(current)}</Text> : null}
+            </Box>
+
+            <Text size="heading" weight="medium">{current.stakes}</Text>
+            <Markdown text={current.context} />
+
+            <Box flexDirection="column" gap="sm">
+              {section('OPTIONS')}
+              {current.options.map(o => {
+                const isRec = o.letter === rec
+                const isChosen = current.answer?.choice === o.letter
+                return (
+                  <Box key={`card-${o.letter}`} flexDirection="row" gap="sm" alignItems="flex-start"
+                    borderStyle="round" borderColor={isRec || isChosen ? 'claude' : 'subtle'} padding="sm"
+                    hover={isOpen ? { borderColor: 'claude' } : undefined}>
+                    {isOpen ? (
+                      <Button key={`opt-${o.letter}`} variant={isRec ? 'primary' : 'secondary'}
+                        onPress={answer(current, o.letter, note)}>{`Choose ${o.letter}`}</Button>
+                    ) : (
+                      <Text size="heading" weight="bold" color={isChosen ? 'success' : 'subtle'}>{isChosen ? `✓ ${o.letter}` : o.letter}</Text>
+                    )}
+                    <Box flexDirection="column" flexGrow={1} flexShrink={1} gap="xs">
+                      <Box flexDirection="row" gap="xs" alignItems="center" flexWrap="wrap">
+                        <Text weight="semibold">{o.label}</Text>
+                        {isRec ? pill('Recommended', 'claude') : null}
+                      </Box>
+                      {o.detail ? <Text size="footnote" color="subtle">{o.detail}</Text> : null}
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+
+            <Box flexDirection="column" gap="xs" borderStyle="round" borderColor="claude" padding="sm">
+              {section(`WHY ${rec}`)}
+              <Text>{current.recommendation.reason}</Text>
+              <Text size="footnote" italic color="subtle">Wrong if {current.recommendation.wrongIf}</Text>
+            </Box>
+
+            {current.artefacts?.length ? (
+              <Box flexDirection="column" gap="xs">
+                {section('LOOK AT')}
+                <Markdown text={current.artefacts.map(a => `- ${a}`).join('\n')} />
+              </Box>
+            ) : null}
+
+            {current.revisions.length ? (
+              <Box flexDirection="column" gap="xs">
+                {section('REVISIONS')}
+                {current.revisions.map(r => <Text key={`r-${r.at}`} size="footnote" color="subtle">{ago(r.at)}: {r.reason}</Text>)}
+              </Box>
+            ) : null}
+
+            {isOpen ? (
+              <Box flexDirection="column" gap="sm">
+                {section('YOUR ANSWER')}
+                <Box borderStyle="round" borderColor="subtle" paddingX="sm">
+                  <Input key="note" rows={3} value={note} placeholder="Add a note to go with your choice, or answer in words and press Enter"
+                    onInput={(value: string) => void update($, draft, () => value)}
+                    onSubmit={(value: string) => void answer(current, undefined, value)()} />
+                </Box>
+                <Box flexDirection="row" gap="xs" alignItems="center">
+                  <Button key="withdraw" variant="secondary" onPress={withdraw(current)}>Not needed</Button>
+                  <Button key="revise" variant="secondary" onPress={askRevision(current)}>Ask to revise</Button>
+                  <Text size="caption" color="subtle">Both send your note.</Text>
+                </Box>
+              </Box>
+            ) : (
+              <Box flexDirection="column" gap="xs" borderStyle="round" borderColor="subtle" padding="sm">
+                {section('OUTCOME')}
+                <Text>
+                  {current.status === 'answered'
+                    ? `Answered${current.answer?.choice ? ` ${current.answer.choice}` : ''} ${byWhom(current)}: ${current.answer?.text}`
+                    : `${sentence(current.status)}: ${current.closedReason ?? ''}${current.supersededBy ? ` (by ${current.supersededBy})` : ''}`}
+                </Text>
+              </Box>
+            )}
+          </Box>
+        )
+      }
+
+      const shown = arrange(all, show, order)
+      const groups = group(shown, by)
+      return (
+        <Box flexDirection="column" gap="md" padding="sm">
+          <Box flexDirection="column" gap="xs">
+            <Text size="title" weight="semibold">Decisions</Text>
+            <Text size="footnote" color="subtle">
+              {all.length ? `${n} open${urgent ? ` · ${urgent} blocking now` : ''} · ${all.length - n} closed` : 'No decisions yet. They appear here as the agent files them.'}
+            </Text>
+          </Box>
+          <Box flexDirection="row" gap="xs" flexWrap="wrap">
+            <Button key="filter" hotkey="f" variant="secondary" onPress={() => void update($, filterBy, () => cycle(FILTERS, show))}>Show: {show}</Button>
+            <Button key="group" hotkey="g" variant="secondary" onPress={() => void update($, groupBy, () => cycle(GROUPS, by))}>Group: {by}</Button>
+            <Button key="sort" hotkey="s" variant="secondary" onPress={() => void update($, sortBy, () => cycle(SORTS, order))}>Sort: {order}</Button>
+          </Box>
+          {shown.length === 0 && all.length ? <Text color="subtle">Nothing matches “{show}”.</Text> : null}
+          {groups.map(([title, rows]) => (
+            <Box key={`g-${title}`} flexDirection="column" gap="xs">
+              {title ? section(`${title} (${rows.length})`) : null}
+              {rows.map(d => (
+                <Box key={`card-${d.id}`} flexDirection="row" gap="sm" alignItems="flex-start"
+                  borderStyle="round" borderColor={d.status === 'open' && d.needed === 'now' ? 'error' : 'subtle'}
+                  paddingX="sm" paddingY="xs" hover={{ borderColor: 'claude' }}>
+                  {badge(d)}
+                  <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+                    <Button key={`row-${d.id}`} plain dimColor={d.status !== 'open'} onPress={openDetail(d.id)}>
+                      <Text weight="semibold">{d.title}</Text>
+                    </Button>
+                    <Text size="caption" color="subtle" wrap="truncate-end">
+                      {d.id} · {KIND_LABEL[d.kind]} · {ago(d.createdAt)}{when(d) ? ` · ${when(d)}` : ''}{d.revisionAsked ? ' · revision asked' : ''}
+                    </Text>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          ))}
+        </Box>
+      )
+    }
 
     if (screen === 'detail' && current) {
       const shown = arrange(all, show, order)

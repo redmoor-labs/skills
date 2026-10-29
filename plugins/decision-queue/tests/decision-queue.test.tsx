@@ -280,3 +280,21 @@ describe('the pane', () => {
     await ui.unmount()
   })
 })
+
+describe('the desktop pane', () => {
+  test('the list shows a card with a pill, and the detail marks the recommendation and answers on Choose', async ($, on) => {
+    const { seen } = engine(on)
+    await start($)
+    await $.tool.call({ tool: ASK, ...DECISION } as never)
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    expect(await ui.find({ type: 'Text', text: /^ Later $/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /D1 · Minor/ })).toBeDefined()
+    await ui.press({ key: 'row-D1' })
+    expect(await ui.find({ type: 'Text', text: /Recommended/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Wrong if/ })).toBeDefined()
+    expect((await ui.find({ key: 'opt-A' }))?.text).toContain('Choose A')
+    await ui.press({ key: 'opt-A' })
+    expect(JSON.parse(lastLog(seen.writes).at(-1) as string)).toMatchObject({ type: 'answer', by: 'panel', choice: 'A' })
+    await ui.unmount()
+  })
+})
