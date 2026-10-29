@@ -40,7 +40,7 @@ export function fold(events: readonly Event[]): Decision[] {
       d.answer = { by: e.by, choice: e.choice, text: e.text, at: e.at }
     } else if (e.type === 'withdraw') {
       d.status = 'withdrawn'
-      d.closedReason = e.by === 'panel' ? `marked not needed: ${e.reason}` : e.reason
+      d.closedReason = e.by === 'agent' ? e.reason : `marked not needed: ${e.reason}`
     } else if (e.type === 'supersede') {
       d.status = 'superseded'
       d.supersededBy = e.by
