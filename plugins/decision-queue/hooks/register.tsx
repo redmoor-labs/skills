@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, HookFailure, Register } from 'claude-code'
 
 import type { Event, Fields, FilterBy, GroupBy, SortBy, View, Where } from '../types'
 import {
@@ -101,6 +101,12 @@ function invalid(lines: string[]) {
   return { deny: `Not filed. Fix and call again:\n- ${lines.join('\n- ')}` }
 }
 
+// The decision tools answer their own call, so a hook that fails must refuse rather than let the call through unanswered.
+function refuseOnFailure(error: HookFailure) {
+  const why = error.kind === 'timeout' ? 'timed out' : (error.message ?? 'threw').split('\n')[0]!.slice(0, 120)
+  return { deny: `${PLUGIN} could not do this (internal error: ${why}). Ask the user in the chat instead.` }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
@@ -165,7 +171,7 @@ export const register: Register = on => {
     if (f.needed === 'now' || f.kind === 'plan-changing') void $.ui.notify(`${id}: ${f.title}`, { title: 'Decision needed' })
     void $.ui.open({ id: PANE, title: 'Decisions' })
     return { result: `Filed ${id}. Print this block in your reply:\n\n${render(filed)}` }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : refuseOnFailure(next.error)))
 
   on('tool.call', { tool: 'mcp__decision-queue__decision_update' }, async ($, e) => {
     const { id, reason, changes } = e as unknown as { id: string; reason: string; changes: Partial<Fields> }
@@ -178,7 +184,7 @@ export const register: Register = on => {
     if (bad.length) return { deny: `Not revised:\n- ${bad.join('\n- ')}` }
     const all = await record($, { type: 'revise', id, at: now(), changes, reason })
     return { result: `Revised ${id}. Reprint it:\n\n${render(all.find(x => x.id === id) as Decision)}` }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : refuseOnFailure(next.error)))
 
   on('tool.call', { tool: 'mcp__decision-queue__decision_resolve' }, async ($, e) => {
     const a = e as unknown as {
@@ -201,7 +207,7 @@ export const register: Register = on => {
       await record($, { type: 'supersede', id: a.id, at, by: a.supersededBy, reason: a.reason ?? '' })
     }
     return { result: `${a.id} is ${a.outcome}.` }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : refuseOnFailure(next.error)))
 
   on('tool.call', { tool: 'mcp__decision-queue__decision_list' }, async $ => {
     const all = queue(fold(await read($, events)))
@@ -209,7 +215,7 @@ export const register: Register = on => {
     const open = all.filter(d => d.status === 'open').map(render)
     const closed = all.filter(d => d.status !== 'open').map(d => `- ${d.id} · ${d.title}: ${d.status}`)
     return { result: [...open, closed.length ? `Closed:\n${closed.join('\n')}` : ''].filter(Boolean).join('\n\n') }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : refuseOnFailure(next.error)))
 
   on('command.run', { command: 'decisions' }, async $ => {
     await $.ui.open({ id: PANE, title: 'Decisions', focus: true })

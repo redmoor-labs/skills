@@ -38,7 +38,7 @@ const PANE = {
 } as const
 
 // The engine beneath the plugin: what it writes and submits is kept for the assertions.
-function engine(on: On) {
+function engine(on: On, { failCwd = false } = {}) {
   const seen = { writes: [] as string[], submitted: [] as string[] }
   mock.env(on, { HOME: '/home/t' })
   on('tool.register', (_, e) => ({ value: { tool: `mcp__decision-queue__${e.name}` } }))
@@ -46,7 +46,10 @@ function engine(on: On) {
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.id', () => ({ value: 'sess-1' }))
-  on('session.cwd', () => ({ value: '/repo' }))
+  on('session.cwd', () => {
+    if (failCwd) throw new Error('cwd unavailable')
+    return { value: '/repo' }
+  })
   on('process.run', () => ({ value: { exitCode: 0, stdout: 'main\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.read', () => ({ value: '' }))
   for (const call of ['ui.status', 'ui.toast', 'ui.log'] as const) on(call, () => ({ value: undefined }))
@@ -107,6 +110,15 @@ describe('the fold', () => {
 })
 
 describe('the tools', () => {
+  test('an ask whose hook throws is refused with a message to ask in the chat, not let through', async ($, on) => {
+    const { seen } = engine(on, { failCwd: true })
+    await start($)
+    const r = await $.tool.call({ tool: ASK, ...DECISION } as never)
+    expect(r.deny).toContain('decision-queue could not do this (internal error:')
+    expect(r.deny).toContain('Ask the user in the chat instead.')
+    expect(seen.writes.length).toBe(0)
+  })
+
   test('an ask missing its wrongIf is refused and writes nothing to the log', async ($, on) => {
     const { seen } = engine(on)
     await start($)

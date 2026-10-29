@@ -98,7 +98,7 @@ export function recommendationIsAnOption(d: Pick<Fields, 'options' | 'recommenda
 export function urgency(d: Pick<Fields, 'needed' | 'when'>): string {
   if (d.needed === 'now') return 'blocking now'
   if (d.needed === 'before') return `needed before ${d.when}`
-  if (d.needed === 'default') return `proceeding on the recommendation; final at ${d.when}`
+  if (d.needed === 'default') return `proceeding on the recommendation; final when: ${d.when}`
   return 'not blocking yet'
 }
 

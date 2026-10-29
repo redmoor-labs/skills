@@ -38,7 +38,7 @@ The agent still prints each decision in the chat as it always has. The mod adds 
 
 One JSON-lines file per session: `~/.claude/decision-queue/<session-id>.jsonl`, or under `$DECISION_QUEUE_DIR` when that is set. It is an append-only event log (ask, revise, answer, withdraw, supersede, revision-asked), so a decision's history survives its revisions. The pane folds the log into the current state. Nothing leaves the machine.
 
-**Conditions.** Written against Claude Code 2.1.306's mod API, which is early access and may change between releases. The pane draws in the terminal and the desktop app; on mobile it says to answer elsewhere. The log is keyed by session id. A resumed session finds its log only if Claude Code resumes it under the same id, which has not been verified.
+**Conditions.** Written against Claude Code 2.1.306's mod API, which is early access and may change between releases. The pane draws in the terminal and in the Claude desktop app's own Code sessions, but not when you drive a session through Remote Control: answer decisions in the chat there instead. On mobile it says to answer elsewhere. The log is keyed by session id. A resumed session finds its log only if Claude Code resumes it under the same id, which has not been verified.
 
 ## Install
 
