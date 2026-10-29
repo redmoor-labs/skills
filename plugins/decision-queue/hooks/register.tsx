@@ -84,6 +84,9 @@ const PILL = { now: 'Blocking now', before: 'Needed before a step', default: 'Pr
 const DOT = { now: '#e5484d', before: '#f5a524', default: '#3e8ed0', whenever: '#8b8d98' } as const
 const DOT_ANSWERED = '#30a46c'
 const DOT_CLOSED = '#8b8d98'
+// Selection colours: blue for the recommendation, green for the option picked. Red is kept for blocking.
+const RECOMMENDED = '#6cb6ff'
+const PICKED = '#57c785'
 function ago(iso: string, short = false): string {
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000))
   const span = mins < 60 ? `${mins}m` : mins < 2880 ? `${Math.round(mins / 60)}h` : `${Math.round(mins / 1440)}d`
@@ -316,7 +319,7 @@ export const register: Register = on => {
                 const isChosen = current.answer?.choice === o.letter
                 return (
                   <Box key={`card-${o.letter}`} flexDirection="row" gap="sm" alignItems="flex-start"
-                    borderStyle="round" borderColor={isRec || isChosen ? 'claude' : 'subtle'} borderDimColor={!(isRec || isChosen)} padding="sm">
+                    borderStyle="round" borderColor={isChosen ? PICKED : isRec ? RECOMMENDED : 'subtle'} borderDimColor={!(isRec || isChosen)} padding="sm">
                     {isOpen ? (
                       <Button key={`opt-${o.letter}`} variant={isRec ? 'primary' : 'secondary'}
                         onPress={answer(current, o.letter, note)}>{`Choose ${o.letter}`}</Button>
@@ -324,7 +327,7 @@ export const register: Register = on => {
                       <Text weight="bold" color={isChosen ? 'success' : 'subtle'}>{isChosen ? `✓ ${o.letter}` : o.letter}</Text>
                     )}
                     <Box flexDirection="column" flexGrow={1} flexShrink={1} gap="xs">
-                      <Text weight="semibold">{o.label}{isRec ? <Text size="caption" weight="semibold" color="claude">{'   Recommended'}</Text> : null}</Text>
+                      <Text weight="semibold">{o.label}{isRec ? <Text size="caption" weight="semibold" color={RECOMMENDED}>{'   Recommended'}</Text> : null}</Text>
                       {o.detail ? <Text size="footnote" color="subtle">{o.detail}</Text> : null}
                     </Box>
                   </Box>
