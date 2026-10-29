@@ -24,7 +24,13 @@ Keep the queue true as the work moves:
 
 Answers given in the user's decision panel arrive as a message naming the decision. They are already recorded, so do not resolve them again: act on them. A "revise" request from the panel asks you to rewrite that decision with \`decision_update\`.
 
-Use \`decision_list\` to see the queue, for example after your context has been summarised.`
+Use \`decision_list\` to see the queue, for example after your context has been summarised.
+
+## Status updates
+
+Post a short status with \`status_update\`: a one-line headline on what you are doing now, and up to six bullets on progress, what is next and anything in the way. The user reads these beside your decisions to see what each agent is working on, often across many sessions at once, so write the headline for someone who has not been following: name the piece of work, not just the step.
+
+Post one when you start a piece of work, when you reach a milestone or change direction, when you stop to wait on the user, and before you finish. If you supervise other agents, post one after you check on them, saying where each stands. Don't post on every turn: a status that never changes is noise.`
 
 const OPTION = {
   type: 'object',
@@ -96,6 +102,18 @@ export const TOOLS = [
         reason: { type: 'string', description: 'For withdrawn or superseded: why.' },
       },
       required: ['id', 'outcome'],
+    },
+  },
+  {
+    name: 'status_update',
+    description: 'Post a short status for the user: what you are working on now and how it is going. Replaces your previous status.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        headline: { type: 'string', description: 'One line, 140 characters at most: the piece of work and where it stands.' },
+        bullets: { type: 'array', items: { type: 'string' }, maxItems: 6, description: 'Progress, next steps, blockers: a few words each.' },
+      },
+      required: ['headline'],
     },
   },
   {

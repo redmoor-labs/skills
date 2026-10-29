@@ -13,6 +13,8 @@ import {
   FILTERS,
   group,
   GROUPS,
+  latestStatus,
+  projectName,
   queue,
   SORTS,
   recommendationIsAnOption,
@@ -62,7 +64,11 @@ async function where($: EngineInterface): Promise<Where> {
     const r = await $.process.run(['git', ...args], { timeoutMs: 5000 }).catch(() => undefined)
     return r && r.exitCode === 0 ? r.stdout.trim() : undefined
   }
-  return { cwd, branch: await git('rev-parse', '--abbrev-ref', 'HEAD'), head: await git('rev-parse', '--short', 'HEAD') }
+  const [remote, commonDir, top, branch, head] = await Promise.all([
+    git('remote', 'get-url', 'origin'), git('rev-parse', '--path-format=absolute', '--git-common-dir'),
+    git('rev-parse', '--show-toplevel'), git('rev-parse', '--abbrev-ref', 'HEAD'), git('rev-parse', '--short', 'HEAD'),
+  ])
+  return { cwd, project: projectName(remote, commonDir), worktree: top?.split('/').pop(), branch, head }
 }
 
 // An answer from the panel reaches the model inside a running turn, or starts a turn when idle.
@@ -298,6 +304,17 @@ export const register: Register = on => {
     return { result: [...open, closed.length ? `Closed:\n${closed.join('\n')}` : ''].filter(Boolean).join('\n\n') }
   }).catch(($, e, next) => (next.called ? next(e) : refuseOnFailure(next.error)))
 
+  on('tool.call', { tool: 'mcp__decision-queue__status_update' }, async ($, e) => {
+    const { headline, bullets } = e as unknown as { headline?: string; bullets?: string[] }
+    const line = headline?.trim() ?? ''
+    if (!line) return { deny: 'headline is required: one line on what you are doing now.' }
+    if (line.length > 140) return { deny: 'Keep the headline to one line (140 characters at most); put detail in bullets.' }
+    const kept = (bullets ?? []).map(b => b.trim()).filter(Boolean)
+    if (kept.length > 6) return { deny: 'Give six bullets at most.' }
+    await record($, { type: 'status', at: now(), headline: line, bullets: kept.length ? kept : undefined })
+    return { result: 'Status posted.' }
+  }).catch(($, e, next) => (next.called ? next(e) : refuseOnFailure(next.error)))
+
   on('command.run', { command: 'decisions' }, async $ => {
     await $.ui.open({ id: PANE, title: 'Decisions', focus: true })
     const { open, now: urgent } = counts(fold(await read($, events)))
@@ -310,7 +327,9 @@ export const register: Register = on => {
       return <Text>The decision queue answers on the terminal or the desktop app.</Text>
     }
     const { Box, Text, Button, Input } = $.ui.resolve(e)
-    const all = fold(await read($, events))
+    const log = await read($, events)
+    const all = fold(log)
+    const status = latestStatus(log)
     const pick = await read($, selected)
     const note = await read($, draft)
     const screen = await read($, view)
@@ -465,6 +484,7 @@ export const register: Register = on => {
             <Text size="footnote" color="subtle">
               {all.length ? `${n} open${urgent ? ` · ${urgent} blocking now` : ''} · ${all.length - n} closed` : 'No decisions yet. They appear here as the agent files them.'}
             </Text>
+            {status ? <Text size="footnote" color="subtle">Status ({ago(status.at)}): {status.headline}</Text> : null}
           </Box>
           <Box flexDirection="row" gap="xs" flexWrap="wrap">
             <Button key="filter" hotkey="f" variant="secondary" onPress={() => void update($, filterBy, () => cycle(FILTERS, show))}>Show: {show}</Button>
@@ -589,6 +609,7 @@ export const register: Register = on => {
         <Text bold>
           {all.length ? `Decisions · ${n} open${urgent ? `, ${urgent} blocking now` : ''} · ${all.length - n} closed` : 'No decisions yet.'}
         </Text>
+        {status ? <Text dimColor>Status ({ago(status.at)}): {status.headline}</Text> : null}
         <Box flexDirection="row" gap={1} marginTop={1}>
           <Button key="filter" hotkey="f" onPress={() => void update($, filterBy, () => cycle(FILTERS, show))}>Show: {show}</Button>
           <Button key="group" hotkey="g" onPress={() => void update($, groupBy, () => cycle(GROUPS, by))}>Group: {by}</Button>
