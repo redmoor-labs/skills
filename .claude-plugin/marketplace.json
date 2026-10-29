@@ -10,6 +10,11 @@
       "name": "design-handover",
       "source": "./plugins/design-handover",
       "description": "Turn visual designs into a structured handover a coding agent can build from without guessing"
+    },
+    {
+      "name": "decision-queue",
+      "source": "./plugins/decision-queue",
+      "description": "Queue the decisions an agent needs from you in a side panel, by urgency, instead of blocking the session"
     }
   ]
 }

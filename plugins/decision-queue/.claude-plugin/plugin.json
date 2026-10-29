@@ -1,0 +1,10 @@
+{
+  "name": "decision-queue",
+  "version": "0.1.0",
+  "description": "A queue of the decisions an agent needs from you, kept per session, with a pane to triage and answer them",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "George Thomas"
+  },
+  "license": "MIT"
+}
