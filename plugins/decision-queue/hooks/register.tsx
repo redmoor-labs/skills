@@ -80,8 +80,10 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…`
 const KIND_SHORT = { gate: 'gate', 'plan-changing': 'plan', shaping: 'design', minor: 'minor' } as const
 // Desktop only: words for the pills and meta lines, and a theme colour per urgency.
 const KIND_LABEL = { gate: 'Approval', 'plan-changing': 'Could change the plan', shaping: 'Design input', minor: 'Minor' } as const
-const PILL = { now: 'Blocking', before: 'Before a step', default: 'Default', whenever: 'Later' } as const
-const PILL_COLOR = { now: 'error', before: 'warning', default: 'suggestion', whenever: 'inactive' } as const
+const PILL = { now: 'Blocking now', before: 'Needed before a step', default: 'Proceeding on a default', whenever: 'Not blocking yet' } as const
+const DOT = { now: '#e5484d', before: '#f5a524', default: '#3e8ed0', whenever: '#8b8d98' } as const
+const DOT_ANSWERED = '#30a46c'
+const DOT_CLOSED = '#8b8d98'
 function ago(iso: string, short = false): string {
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000))
   const span = mins < 60 ? `${mins}m` : mins < 2880 ? `${Math.round(mins / 60)}h` : `${Math.round(mins / 1440)}d`
@@ -261,17 +263,19 @@ export const register: Register = on => {
     const current = all.find(d => d.id === pick)
 
     if (e.surface === 'desktop') {
-      const { Markdown } = $.ui.resolve(e)
-      const pill = (label: string, bg: string) => (
-        <Text size="caption" weight="semibold" color="inverseText" backgroundColor={bg}>{` ${label} `}</Text>
+      const { Markdown, Svg } = $.ui.resolve(e)
+      // Urgency as a small dot and a coloured word, never a filled block.
+      const dotColor = (d: Decision) => d.status === 'open' ? DOT[d.needed] : d.status === 'answered' ? DOT_ANSWERED : DOT_CLOSED
+      const dot = (d: Decision) => (
+        <Svg alt={d.status === 'open' ? PILL[d.needed] : d.status} width={8} height={8}
+          source={`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="${dotColor(d)}"/></svg>`} />
       )
-      const badge = (d: Decision) => d.status === 'open'
-        ? pill(PILL[d.needed], PILL_COLOR[d.needed])
-        : pill(sentence(d.status), d.status === 'answered' ? 'success' : 'inactive')
-      const section = (text: string) => <Text size="footnote" weight="semibold" color="subtle">{text}</Text>
-      const when = (d: Decision) =>
-        d.status === 'open' && (d.needed === 'before' || d.needed === 'default') && d.when
-          ? `${d.needed === 'before' ? 'Needed before' : 'Final when'}: ${d.when}` : ''
+      const section = (text: string) => <Text size="caption" weight="semibold" color="subtle">{text}</Text>
+      const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+      const whenLine = (d: Decision) =>
+        d.status !== 'open' || !d.when ? ''
+          : d.needed === 'before' ? `Needed by: ${d.when}`
+            : d.needed === 'default' ? `Going with ${d.recommendation.option} unless you say otherwise · final ${lower(d.when)}` : ''
 
       if (screen === 'detail' && current) {
         const shown = arrange(all, show, order)
@@ -280,6 +284,7 @@ export const register: Register = on => {
         const next = at >= 0 && at < shown.length - 1 ? shown[at + 1] : undefined
         const rec = current.recommendation.option
         const isOpen = current.status === 'open'
+        const label = isOpen ? PILL[current.needed] : sentence(current.status)
         return (
           <Box flexDirection="column" gap="md" padding="sm">
             <Box flexDirection="row" gap="xs" justifyContent="space-between">
@@ -292,19 +297,17 @@ export const register: Register = on => {
 
             <Box flexDirection="column" gap="xs">
               <Box flexDirection="row" gap="xs" alignItems="center">
-                {badge(current)}
-                <Text size="caption" color="subtle">
-                  {current.id} · {KIND_LABEL[current.kind]} · filed {ago(current.createdAt)}
-                  {current.where.branch ? ` · ${current.where.branch}` : ''}
-                  {current.revisions.length ? ` · revised ${current.revisions.length}×` : ''}
-                </Text>
+                {dot(current)}
+                <Text size="caption" weight="semibold" color={isOpen && current.needed === 'now' ? 'error' : 'subtle'}>{label}</Text>
+                <Text size="caption" color="subtle">· {current.id} · {KIND_LABEL[current.kind]} · {ago(current.createdAt)}
+                  {current.revisions.length ? ` · revised ${current.revisions.length}×` : ''}</Text>
               </Box>
               <Text size="title" weight="semibold">{current.title}</Text>
-              {when(current) ? <Text size="footnote" color="subtle">{when(current)}</Text> : null}
+              {whenLine(current) ? <Text size="footnote" color="subtle">{whenLine(current)}</Text> : null}
             </Box>
 
-            <Text size="heading" weight="medium">{current.stakes}</Text>
-            <Markdown text={current.context} />
+            <Text weight="medium">{current.stakes}</Text>
+            <Markdown text={current.context} dimColor />
 
             <Box flexDirection="column" gap="sm">
               {section('OPTIONS')}
@@ -313,19 +316,15 @@ export const register: Register = on => {
                 const isChosen = current.answer?.choice === o.letter
                 return (
                   <Box key={`card-${o.letter}`} flexDirection="row" gap="sm" alignItems="flex-start"
-                    borderStyle="round" borderColor={isRec || isChosen ? 'claude' : 'subtle'} padding="sm"
-                    hover={isOpen ? { borderColor: 'claude' } : undefined}>
+                    borderStyle="round" borderColor={isRec || isChosen ? 'claude' : 'subtle'} borderDimColor={!(isRec || isChosen)} padding="sm">
                     {isOpen ? (
                       <Button key={`opt-${o.letter}`} variant={isRec ? 'primary' : 'secondary'}
                         onPress={answer(current, o.letter, note)}>{`Choose ${o.letter}`}</Button>
                     ) : (
-                      <Text size="heading" weight="bold" color={isChosen ? 'success' : 'subtle'}>{isChosen ? `✓ ${o.letter}` : o.letter}</Text>
+                      <Text weight="bold" color={isChosen ? 'success' : 'subtle'}>{isChosen ? `✓ ${o.letter}` : o.letter}</Text>
                     )}
                     <Box flexDirection="column" flexGrow={1} flexShrink={1} gap="xs">
-                      <Box flexDirection="row" gap="xs" alignItems="center" flexWrap="wrap">
-                        <Text weight="semibold">{o.label}</Text>
-                        {isRec ? pill('Recommended', 'claude') : null}
-                      </Box>
+                      <Text weight="semibold">{o.label}{isRec ? <Text size="caption" weight="semibold" color="claude">{'   Recommended'}</Text> : null}</Text>
                       {o.detail ? <Text size="footnote" color="subtle">{o.detail}</Text> : null}
                     </Box>
                   </Box>
@@ -333,10 +332,10 @@ export const register: Register = on => {
               })}
             </Box>
 
-            <Box flexDirection="column" gap="xs" borderStyle="round" borderColor="claude" padding="sm">
+            <Box flexDirection="column" gap="xs">
               {section(`WHY ${rec}`)}
               <Text>{current.recommendation.reason}</Text>
-              <Text size="footnote" italic color="subtle">Wrong if {current.recommendation.wrongIf}</Text>
+              <Text size="footnote" italic color="subtle">Wrong if {lower(current.recommendation.wrongIf)}</Text>
             </Box>
 
             {current.artefacts?.length ? (
@@ -354,21 +353,19 @@ export const register: Register = on => {
             ) : null}
 
             {isOpen ? (
-              <Box flexDirection="column" gap="sm">
+              <Box flexDirection="column" gap="sm" alignItems="stretch">
                 {section('YOUR ANSWER')}
-                <Box borderStyle="round" borderColor="subtle" paddingX="sm">
-                  <Input key="note" rows={3} value={note} placeholder="Add a note to go with your choice, or answer in words and press Enter"
-                    onInput={(value: string) => void update($, draft, () => value)}
-                    onSubmit={(value: string) => void answer(current, undefined, value)()} />
-                </Box>
+                <Input key="note" rows={3} value={note} submitLabel="Send"
+                  placeholder="A note to go with your choice, or your answer in words"
+                  onInput={(value: string) => void update($, draft, () => value)}
+                  onSubmit={(value: string) => void answer(current, undefined, value)()} />
                 <Box flexDirection="row" gap="xs" alignItems="center">
                   <Button key="withdraw" variant="secondary" onPress={withdraw(current)}>Not needed</Button>
                   <Button key="revise" variant="secondary" onPress={askRevision(current)}>Ask to revise</Button>
-                  <Text size="caption" color="subtle">Both send your note.</Text>
                 </Box>
               </Box>
             ) : (
-              <Box flexDirection="column" gap="xs" borderStyle="round" borderColor="subtle" padding="sm">
+              <Box flexDirection="column" gap="xs">
                 {section('OUTCOME')}
                 <Text>
                   {current.status === 'answered'
@@ -398,20 +395,19 @@ export const register: Register = on => {
           </Box>
           {shown.length === 0 && all.length ? <Text color="subtle">Nothing matches “{show}”.</Text> : null}
           {groups.map(([title, rows]) => (
-            <Box key={`g-${title}`} flexDirection="column" gap="xs">
+            <Box key={`g-${title}`} flexDirection="column" gap="sm">
               {title ? section(`${title} (${rows.length})`) : null}
               {rows.map(d => (
-                <Box key={`card-${d.id}`} flexDirection="row" gap="sm" alignItems="flex-start"
-                  borderStyle="round" borderColor={d.status === 'open' && d.needed === 'now' ? 'error' : 'subtle'}
-                  paddingX="sm" paddingY="xs" hover={{ borderColor: 'claude' }}>
-                  {badge(d)}
+                <Box key={`card-${d.id}`} flexDirection="row" gap="sm" alignItems="flex-start">
+                  <Box paddingTop="xs">{dot(d)}</Box>
                   <Box flexDirection="column" flexGrow={1} flexShrink={1}>
                     <Button key={`row-${d.id}`} plain dimColor={d.status !== 'open'} onPress={openDetail(d.id)}>
-                      <Text weight="semibold">{d.title}</Text>
+                      <Text weight="medium">{d.title}</Text>
                     </Button>
-                    <Text size="caption" color="subtle" wrap="truncate-end">
-                      {d.id} · {KIND_LABEL[d.kind]} · {ago(d.createdAt)}{when(d) ? ` · ${when(d)}` : ''}{d.revisionAsked ? ' · revision asked' : ''}
+                    <Text size="caption" color="subtle">
+                      {d.id} · {KIND_LABEL[d.kind]} · {ago(d.createdAt)}{d.revisionAsked ? ' · revision asked' : ''}
                     </Text>
+                    {whenLine(d) ? <Text size="caption" color="subtle">{whenLine(d)}</Text> : null}
                   </Box>
                 </Box>
               ))}
