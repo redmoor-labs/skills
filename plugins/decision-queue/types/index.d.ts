@@ -5,7 +5,8 @@ export type AnsweredBy = 'panel' | 'hub' | 'chat' | 'default'
 
 export type Option = { letter: string; label: string; detail?: string }
 export type Recommendation = { option: string; reason: string; wrongIf: string }
-export type Where = { cwd: string; branch?: string; head?: string }
+// `project` is the repository (owner/name from origin, else the main checkout's folder); `worktree` the checkout's folder.
+export type Where = { cwd: string; project?: string; worktree?: string; branch?: string; head?: string }
 
 export type Fields = {
   title: string
@@ -26,6 +27,7 @@ export type Event =
   | { type: 'withdraw'; id: string; at: string; by: 'agent' | 'panel' | 'hub'; reason: string }
   | { type: 'supersede'; id: string; at: string; by: string; reason: string }
   | { type: 'revision-asked'; id: string; at: string; text: string }
+  | { type: 'status'; at: string; headline: string; bullets?: string[] }
 
 // What the hub's inbox holds: an answer given on the hub, waiting for this session to apply it.
 export type InboxItem =
@@ -39,6 +41,10 @@ export type FilterBy = 'open' | 'all' | 'closed' | 'blocking'
 export type SortBy = 'urgency' | 'newest' | 'oldest'
 
 declare module 'claude-code' {
+  // Declared here so the hook types without a session having laid the tool from a live server.
+  interface McpToolInputs {
+    'mcp__decision-queue__status_update': { headline: string; bullets?: string[] }
+  }
   interface PluginState {
     'decision-queue': {
       events: Event[]

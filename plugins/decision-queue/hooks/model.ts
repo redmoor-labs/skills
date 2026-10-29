@@ -28,6 +28,7 @@ export function fold(events: readonly Event[]): Decision[] {
       byId.set(e.id, { ...rest, status: 'open', createdAt: at, updatedAt: at, revisions: [] })
       continue
     }
+    if (e.type === 'status') continue
     const d = byId.get(e.id)
     if (!d) continue
     d.updatedAt = e.at
@@ -61,6 +62,24 @@ export function queue(decisions: readonly Decision[]): Decision[] {
     .filter(d => d.status !== 'open')
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   return [...open, ...closed]
+}
+
+// The session's latest status update, if it has posted one.
+export function latestStatus(events: readonly Event[]): Extract<Event, { type: 'status' }> | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]!
+    if (e.type === 'status') return e
+  }
+  return undefined
+}
+
+// The repository a checkout belongs to: owner/name from its origin URL, else the main checkout's folder.
+export function projectName(remote: string | undefined, commonDir: string | undefined): string | undefined {
+  const m = remote?.trim().match(/[:/]([^/:]+\/[^/]+?)(?:\.git)?\/?$/)
+  if (m) return m[1]
+  const parts = (commonDir ?? '').split('/').filter(Boolean)
+  if (parts.at(-1) === '.git') parts.pop()
+  return parts.at(-1)
 }
 
 export function nextId(events: readonly Event[]): string {

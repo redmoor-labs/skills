@@ -2,13 +2,14 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import { fold, problems, queue } from '../hooks/model'
+import { fold, latestStatus, problems, projectName, queue } from '../hooks/model'
 import type { Event } from '../types'
 
 const ASK = 'mcp__decision-queue__decision_ask'
 const UPDATE = 'mcp__decision-queue__decision_update'
 const RESOLVE = 'mcp__decision-queue__decision_resolve'
 const LIST = 'mcp__decision-queue__decision_list'
+const STATUS = 'mcp__decision-queue__status_update'
 
 const DECISION: Record<string, unknown> & { options: { letter: string; label: string }[]; recommendation: Record<string, string> } = {
   title: 'Where the archive lives',
@@ -38,7 +39,7 @@ const PANE = {
 } as const
 
 // The engine beneath the plugin: what it writes and submits is kept for the assertions.
-function engine(on: On, { failCwd = false, hub = '' } = {}) {
+function engine(on: On, { failCwd = false, hub = '', git = {} as Record<string, string> } = {}) {
   const seen = { writes: [] as string[], submitted: [] as string[], logs: [] as string[] }
   mock.env(on, hub ? { HOME: '/home/t', REDMOOR_DECISIONQ_HUB_URL: hub } : { HOME: '/home/t' })
   on('tool.register', (_, e) => ({ value: { tool: `mcp__decision-queue__${e.name}` } }))
@@ -50,7 +51,10 @@ function engine(on: On, { failCwd = false, hub = '' } = {}) {
     if (failCwd) throw new Error('cwd unavailable')
     return { value: '/repo' }
   })
-  on('process.run', () => ({ value: { exitCode: 0, stdout: 'main\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  // git answers 'main' to everything but the commands a test names.
+  on('process.run', (_, e) => ({
+    value: { exitCode: 0, stdout: `${git[e.argv.slice(1).join(' ')] ?? 'main'}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
   on('fs.read', () => ({ value: '' }))
   for (const call of ['ui.status', 'ui.toast'] as const) on(call, () => ({ value: undefined }))
   on('ui.log', (_, e) => {
@@ -389,5 +393,58 @@ describe('the hub', () => {
     expect(said(r)).toContain('Filed D1')
     expect(seen.writes.length).toBe(1)
     expect(seen.logs.filter(l => l.includes('could not reach the hub')).length).toBe(1)
+  })
+})
+
+describe('where a decision comes from', () => {
+  test('the project is owner/name from the origin URL, in either form, else the main checkout\'s folder', () => {
+    expect(projectName('git@github.com:redmoor-labs/skills.git', undefined)).toBe('redmoor-labs/skills')
+    expect(projectName('https://github.com/redmoor-labs/skills', undefined)).toBe('redmoor-labs/skills')
+    expect(projectName(undefined, '/home/t/projects/forge/.git')).toBe('forge')
+    expect(projectName(undefined, undefined)).toBeUndefined()
+  })
+})
+
+describe('status updates', () => {
+  test('a status is kept in the log, is not a decision, and the latest one wins', () => {
+    const at = '2026-10-29T10:00:00Z'
+    const events: Event[] = [
+      { type: 'status', at, headline: 'Starting the export' },
+      ({ type: 'ask', id: 'D1', at, where: { cwd: '/r' }, ...DECISION }) as Event,
+      { type: 'status', at, headline: 'Export done, on to the import', bullets: ['PR open'] },
+    ]
+    expect(fold(events).map(d => d.id)).toEqual(['D1'])
+    expect(latestStatus(events)?.headline).toBe('Export done, on to the import')
+  })
+
+  test('status_update records the headline and bullets, and refuses an empty or overlong headline', async ($, on) => {
+    const { seen } = engine(on)
+    await start($)
+    expect(refused(await $.tool.call({ tool: STATUS, headline: '  ' } as never))).toBe(true)
+    expect(refused(await $.tool.call({ tool: STATUS, headline: 'x'.repeat(141) } as never))).toBe(true)
+    const r = await $.tool.call({ tool: STATUS, headline: 'Wiring the hub', bullets: ['tests pass', ' '] } as never)
+    expect(said(r)).toContain('Status posted')
+    expect(JSON.parse(lastLog(seen.writes).at(-1) as string)).toMatchObject({ type: 'status', headline: 'Wiring the hub', bullets: ['tests pass'] })
+  })
+
+  test('a status alone is sent to the hub, with the project and worktree', async ($, on) => {
+    engine(on, { hub: 'http://hub.test', git: { 'remote get-url origin': 'git@github.com:acme/app.git', 'rev-parse --show-toplevel': '/w/app-feature' } })
+    const { calls } = hubServer(on)
+    const clock = mock.clock(on)
+    await start($)
+    await $.tool.call({ tool: STATUS, headline: 'Wiring the hub' } as never)
+    await clock.advance(0)
+    expect(calls.find(c => c.method === 'PUT')?.body).toMatchObject({
+      where: { project: 'acme/app', worktree: 'app-feature' }, events: [{ type: 'status', headline: 'Wiring the hub' }],
+    })
+  })
+
+  test('the pane shows the latest status under its heading', async ($, on) => {
+    engine(on)
+    await start($)
+    await $.tool.call({ tool: STATUS, headline: 'Wiring the hub' } as never)
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+    expect(await ui.find({ type: 'Text', text: /Status .*Wiring the hub/ })).toBeDefined()
+    await ui.unmount()
   })
 })

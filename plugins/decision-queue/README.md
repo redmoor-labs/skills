@@ -6,11 +6,12 @@ The agent still prints each decision in the chat as it always has. The mod adds 
 
 ## What it adds
 
-- **Four tools the model calls.**
+- **Five tools the model calls.**
   - `decision_ask` files a decision and returns the block to print. It refuses one that is not answerable cold: fewer than two options, no recommendation, no "wrong if".
   - `decision_update` revises an open decision.
   - `decision_resolve` closes one as answered (in the chat, or by default at its deadline), withdrawn, or superseded.
   - `decision_list` reads the queue back, for example after the context has been summarised.
+  - `status_update` posts a one-line status with up to six bullets: what the agent is working on and how it's going. The protocol asks for one at the start of a piece of work, at milestones, when waiting on you, and before finishing. The pane shows the latest one, and a hub shows them for every session.
 - **A short protocol in the system prompt.** It covers when something is a decision, how to write one for a reader who has read nothing, the urgency classes, and keeping the queue true.
 - **`/decisions`**, a pane with two screens.
   - **The list** shows every decision as one row: how urgent it is, its id, its title, its kind and its age. Three controls change the view: **Show** (open, blocking, all, closed), **Group** (by urgency, by kind, or none) and **Sort** (by urgency, newest or oldest). The `f`, `g` and `s` keys press them.
@@ -50,7 +51,7 @@ The protocol is three calls, all JSON, with `{session}` being the Claude Code se
 
 | Call | When | Body |
 |---|---|---|
-| `PUT {hub}/v1/sessions/{session}` | every change to the log | `{ where: { cwd, branch?, head? }, events: [...] }`: the whole event log, the same events as the file on disk |
+| `PUT {hub}/v1/sessions/{session}` | every change to the log | `{ where: { cwd, project?, worktree?, branch?, head? }, events: [...] }`: the whole event log, the same events as the file on disk. `project` is the repository, as `owner/name` from the `origin` remote, or else the main checkout's folder name. `worktree` is the checkout's folder name. Status updates are events of type `status` (`{ at, headline, bullets? }`), with no decision id |
 | `GET {hub}/v1/sessions/{session}/inbox` | every 5 seconds, once the session has filed something | the reply: `{ items: [{ seq, id, action, choice?, text? }] }`, where `action` is `answer`, `withdraw` or `revise` (`revise` needs `text`) |
 | `POST {hub}/v1/sessions/{session}/inbox/ack` | after applying the inbox | `{ upTo: seq }`: the hub drops those items |
 
